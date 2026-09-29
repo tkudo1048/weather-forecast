@@ -1,0 +1,14 @@
+# note記事・素材はGitHubには含めない(コードのみ公開)
+/drafts/
+/published/
+/ideas/
+/images/
+/templates/
+/research/
+/data/
+/CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
