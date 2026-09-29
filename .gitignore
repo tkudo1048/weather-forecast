@@ -4,8 +4,8 @@
 /ideas/
 /images/
 /templates/
-/research/
-/data/
+/research/*
+!/research/gb_optuna_trials.csv
 /CLAUDE.md
 
 # Python
