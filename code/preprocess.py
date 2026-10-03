@@ -45,6 +45,12 @@ _LABEL_RULES = [
 
 def load(name: str, cols: list[str]) -> pd.DataFrame:
     df = pd.read_csv(RAW / f"{name}_daily.csv", encoding="utf-8-sig", dtype=str)
+    return parse_daily(df, cols)
+
+
+def parse_daily(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    """取得した日別表（文字列のまま）を数値化する。月別CSVにも使えるよう load から分離。"""
+    df = df.copy()
     # 列名は取得スクリプトの旧バグでずれているため、位置で付け直す
     df.columns = ["year", "month", "day"] + cols
     df["date"] = pd.to_datetime(df[["year", "month", "day"]].astype(int))

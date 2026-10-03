@@ -6,9 +6,17 @@
 /templates/
 /research/*
 !/research/gb_optuna_trials.csv
-/CLAUDE.md
 
 # Python
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# 個人用の予測ログ・学習済みモデル（公開しない）
+/logs/
+/models/
+
+# 気象庁の10分データ・直近の日別データ(再取得できるためGitHubには含めない)
+/data/raw/amedas_10min/
+/data/raw/recent/
+/slides/

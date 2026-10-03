@@ -14,6 +14,14 @@ code/
   tune_gradient_boosting_optuna.py   同、Optuna(TPE)によるチューニング
   seed_robustness.py                 seedを変えた再実行とブートストラップによる差の検証
   tune_same_space.py                 Optunaと同じ探索空間でのGridSearchCV / RandomizedSearchCV
+  ablation_evening_features.py       夜に作れる特徴量(今日の天気概況・降雪を除く)での再評価
+  train_final.py                     全データで再学習し、モデルを保存
+  fetch_realtime.py                  気象庁の10分ごとの観測を取得し、日別の特徴量に集計
+  jma_daily.py                       直近の日別データを取得・数値化(前処理と同じ規則)
+  predict_tonight.py                 夜に翌日の天気(4クラスの確率)を予測してログに記録
+  score_predictions.py               記録した予測を、後日の実際の天気と照合
+  check_realtime_features.py         10分集計の特徴量と気象庁の日別値のずれを確認
+  sensitivity_realtime_bias.py       特徴量のずれが予測クラスに与える影響を測定
 data/
   raw/                               取得した生データ(月別CSV、結合済みの *_daily.csv)
   processed/dataset.csv              前処理済みデータセット
