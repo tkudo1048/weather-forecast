@@ -14,6 +14,7 @@ code/
   tune_gradient_boosting_optuna.py   同、Optuna(TPE)によるチューニング
   seed_robustness.py                 seedを変えた再実行とブートストラップによる差の検証
   tune_same_space.py                 Optunaと同じ探索空間でのGridSearchCV / RandomizedSearchCV
+  gb_balanced_weights.py             勾配ブースティングにもクラス重みを付けて再評価(ロジスティック回帰との公平な比較)
   ablation_evening_features.py       夜に作れる特徴量(今日の天気概況・降雪を除く)での再評価
   train_final.py                     全データで再学習し、モデルを保存
   fetch_realtime.py                  気象庁の10分ごとの観測を取得し、日別の特徴量に集計
