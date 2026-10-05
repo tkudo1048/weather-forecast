@@ -20,3 +20,6 @@ __pycache__/
 /data/raw/amedas_10min/
 /data/raw/recent/
 /slides/
+
+# 仮想環境
+/.venv/

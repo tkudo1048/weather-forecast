@@ -30,8 +30,12 @@ data/
 
 ## 使い方
 
+Python 3.13 で動作を確認しています。パッケージのバージョンは `requirements.txt` に固定しています。
+
 ```bash
-pip install pandas scikit-learn optuna requests
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
 python code/download_jma_data.py      # データ取得(リクエスト間に待機を入れているので時間がかかります)
 python code/preprocess.py             # 前処理
