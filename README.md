@@ -37,7 +37,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-python code/download_jma_data.py      # データ取得(リクエスト間に待機を入れているので時間がかかります)
+python code/download_jma_data.py      # データ取得。保存済みの月は再取得せず、直近2か月だけ取り直します(初回は待機を入れるので数分かかります。全期間を取り直すには --refresh)
 python code/preprocess.py             # 前処理
 python code/train_model.py            # ベースライン
 PYTHONPATH=code python code/compare_models.py
