@@ -6,17 +6,21 @@
   （各foldで「過去で学習→直後の期間で検証」。シャッフルなし）
 - 評価データ（364行）は、最良パラメータ決定後の最終評価にのみ使う（リーク防止）。
 - 実行方法: プロジェクト直下で `PYTHONPATH=code python code/tune_gradient_boosting.py`
+- 探索は staged_search.staged_grid_search（n_estimators=400で1回学習し、staged_predictで
+  50/100/200本の予測も取り出す方式）。GridSearchCVとCVスコアが一致することを照合済み。
 - 探索指標は Macro F1（クラス不均衡を考慮し、4クラスを平等に扱うため）。
 """
 import time
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
+from sklearn.base import clone
 
 from compare_models import (load_data, time_series_split, build_models, evaluate,
                             FEATURE_COLS, TARGET_COL, CLASSES)
+from staged_search import staged_grid_search
 
 PARAM_GRID = {
     "clf__n_estimators": [50, 100, 200, 400],
@@ -38,19 +42,16 @@ def main():
         ("clf", GradientBoostingClassifier(random_state=42)),
     ])
     cv = TimeSeriesSplit(n_splits=5)
-    gs = GridSearchCV(pipe, PARAM_GRID, cv=cv, scoring="f1_macro",
-                      n_jobs=-1, return_train_score=True)
     t0 = time.time()
-    gs.fit(X_tr, y_tr)
+    cvr, i = staged_grid_search(pipe, PARAM_GRID, X_tr, y_tr, cv, n_jobs=-1, return_train_score=True)
     elapsed = time.time() - t0
-    n = len(gs.cv_results_["params"])
-    print(f"探索組み合わせ数: {n}, fold数: 5, 所要時間: {elapsed:.1f}秒")
-    print("最良パラメータ:", gs.best_params_)
-    i = gs.best_index_
-    print(f"CV Macro F1: {gs.best_score_:.3f} (±{gs.cv_results_['std_test_score'][i]:.3f}), "
-          f"CV学習側 Macro F1: {gs.cv_results_['mean_train_score'][i]:.3f}")
+    best_params = cvr.loc[i, "params"]
+    print(f"探索組み合わせ数: {len(cvr)}, fold数: 5, 所要時間: {elapsed:.1f}秒")
+    print("最良パラメータ:", best_params)
+    print(f"CV Macro F1: {cvr['mean_test_score'][i]:.3f} (±{cvr['std_test_score'][i]:.3f}), "
+          f"CV学習側 Macro F1: {cvr['mean_train_score'][i]:.3f}")
 
-    res = pd.DataFrame(gs.cv_results_).sort_values("rank_test_score")
+    res = cvr.sort_values("rank_test_score", kind="stable")
     cols = [c for c in res.columns if c.startswith("param_")] + ["mean_test_score", "std_test_score", "mean_train_score"]
     print(res[cols].head(10).to_string(index=False))
     res[cols].to_csv("research/gb_tuning_cv_results.csv", index=False)
@@ -60,10 +61,11 @@ def main():
     from sklearn.model_selection import cross_val_score
     lr_cv = cross_val_score(lr, X_tr, y_tr, cv=cv, scoring="f1_macro")
     print(f"ロジスティック回帰 CV Macro F1: {lr_cv.mean():.3f} (±{lr_cv.std():.3f})")
-    gb_folds = [gs.cv_results_[f"split{k}_test_score"][i] for k in range(5)]
+    gb_folds = [cvr[f"split{k}_test_score"][i] for k in range(5)]
     print("fold別 GB:", [round(v, 3) for v in gb_folds], " LR:", [round(v, 3) for v in lr_cv])
 
-    models = {"ロジスティック回帰": lr, "勾配ブースティング(チューニング後)": gs.best_estimator_}
+    best_gb = clone(pipe).set_params(**best_params)
+    models = {"ロジスティック回帰": lr, "勾配ブースティング(チューニング後)": best_gb}
     for name, m in models.items():
         m.fit(X_tr, y_tr)
         tra, trf, _ = evaluate(y_tr, m.predict(X_tr))

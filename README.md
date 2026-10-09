@@ -12,6 +12,7 @@ code/
   compare_models.py                  5手法の比較(LR / 決定木 / ランダムフォレスト / 勾配ブースティング / kNN)
   tune_gradient_boosting.py          勾配ブースティングのGridSearchCVチューニング
   tune_gradient_boosting_optuna.py   同、Optuna(TPE)によるチューニング
+  staged_search.py                   n_estimatorsの水準を1回の学習から評価するGrid探索(GridSearchCVと同じCVスコアで、約3.4倍速い)
   seed_robustness.py                 seedを変えた再実行とブートストラップによる差の検証
   tune_same_space.py                 Optunaと同じ探索空間でのGridSearchCV / RandomizedSearchCV
   gb_balanced_weights.py             勾配ブースティングにもクラス重みを付けて再評価(ロジスティック回帰との公平な比較)

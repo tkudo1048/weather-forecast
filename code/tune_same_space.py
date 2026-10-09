@@ -1,17 +1,20 @@
 """
-Optuna版と同じ探索空間（max_features含む）を離散化し、GridSearchCV（全探索）と
+Optuna版と同じ探索空間（max_features含む）を離散化し、Grid全探索と
 RandomizedSearchCV（Optunaと同予算150回）で勾配ブースティングをチューニングして公平に比較する。
 
 目的: 「Optunaが良く見えたのは探索アルゴリズムの差か、探索空間の差か」を切り分ける。
+- Grid全探索は staged_search.staged_grid_search（n_estimators=600で1回学習し、staged_predictで
+  100/200/300/450本の予測も取り出す方式）。GridSearchCVとCVスコアが一致することを照合済み。
 - 探索は学習データ内の TimeSeriesSplit(n_splits=5) のみ。評価データ（直近365日）は最終評価だけに使う。
 - 実行方法: プロジェクト直下で `PYTHONPATH=code python code/tune_same_space.py`
 """
 import time
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, RandomizedSearchCV
+from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
 
 from compare_models import load_data, time_series_split, evaluate, FEATURE_COLS, TARGET_COL
 from tune_gradient_boosting_optuna import make_pipe
+from staged_search import staged_grid_search
 
 SPACE = {
     "clf__n_estimators": [100, 200, 300, 450, 600],
@@ -31,23 +34,25 @@ def main():
     X_ev, y_ev = eval_df[FEATURE_COLS], eval_df[TARGET_COL]
     cv = TimeSeriesSplit(n_splits=5)
 
-    searches = {
-        "GridSearchCV(全2160通り)": GridSearchCV(make_pipe(), SPACE, cv=cv, scoring="f1_macro", n_jobs=-1),
-        "RandomizedSearchCV(150回)": RandomizedSearchCV(make_pipe(), SPACE, n_iter=N_ITER, cv=cv,
-                                                        scoring="f1_macro", n_jobs=-1, random_state=42),
-    }
+    rand = RandomizedSearchCV(make_pipe(), SPACE, n_iter=N_ITER, cv=cv,
+                              scoring="f1_macro", n_jobs=-1, random_state=42)
     rows = []
-    for name, s in searches.items():
+    for name in ["GridSearchCV(全2160通り)", "RandomizedSearchCV(150回)"]:
         t0 = time.time()
-        s.fit(X_tr, y_tr)
+        if name.startswith("Grid"):
+            # staged方式: 最良はGridSearchCVと同じく rank_test_score 最小の先頭
+            res, i = staged_grid_search(make_pipe(), SPACE, X_tr, y_tr, cv, n_jobs=-1)
+            best_params = res.loc[i, "params"]
+            m = make_pipe(**{k.replace("clf__", ""): v for k, v in best_params.items()}).fit(X_tr, y_tr)
+        else:
+            rand.fit(X_tr, y_tr)
+            res, i = pd.DataFrame(rand.cv_results_), rand.best_index_
+            best_params, m = rand.best_params_, rand.best_estimator_
         el = time.time() - t0
-        i = s.best_index_
-        cv_mean, cv_std = s.cv_results_["mean_test_score"][i], s.cv_results_["std_test_score"][i]
-        m = s.best_estimator_
+        cv_mean, cv_std = res["mean_test_score"][i], res["std_test_score"][i]
         tra, trf, _ = evaluate(y_tr, m.predict(X_tr))
         eva, evf, _ = evaluate(y_ev, m.predict(X_ev))
-        params = {k.replace("clf__", ""): v for k, v in s.best_params_.items()}
-        res = pd.DataFrame(s.cv_results_)
+        params = {k.replace("clf__", ""): v for k, v in best_params.items()}
         top = res.sort_values("mean_test_score", ascending=False)["mean_test_score"]
         print(f"[{name}] {el:.1f}秒 best={params} CV={cv_mean:.3f}(±{cv_std:.3f}) "
               f"上位10平均={top.head(10).mean():.3f} 評価Acc={eva:.3f} F1={evf:.3f} ギャップF1={trf-evf:.3f}")
